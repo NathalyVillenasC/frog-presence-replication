@@ -13,10 +13,12 @@ venv/
 .env
 
 # Data
-data/
+data/*
+!data/.gitkeep
 
 # Trained models
-models/
+models/*
+!models/.gitkeep
 
 # OS files
 .DS_Store
