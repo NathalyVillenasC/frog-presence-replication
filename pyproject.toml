@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "frog-presence-replication"
+version = "0.1.0"
+description = "Replication of presence-absence estimation in audio recordings of tropical frog communities"
+requires-python = ">=3.12"
+
+# Runtime dependencies stay in requirements.txt, where each one is documented with the
+# reason it is needed. This file only declares the package so that `pip install -e .`
+# makes `frog_presence` importable from the notebooks and from the tests alike.
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

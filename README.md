@@ -21,6 +21,7 @@ frog-presence-replication/
 ├── src/           # Reproducible source code
 ├── tests/         # Unit and integration tests
 ├── .env.example   # Template for the local dataset locations
+├── pyproject.toml # Package metadata, so src/ is importable
 ├── CLAUDE.md      # Working rules for the repository
 ├── README.md
 └── requirements.txt
@@ -37,6 +38,7 @@ python -m venv .venv
 source .venv/bin/activate       # macOS / Linux
 
 pip install -r requirements.txt
+pip install -e .                # makes src/frog_presence importable
 ```
 
 Then tell the project where the audio lives:
