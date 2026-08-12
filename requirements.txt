@@ -11,6 +11,10 @@ seaborn
 jupyter
 ipykernel
 
+# Configuration. Reads the dataset locations from a local .env file, so the paths
+# stay out of the code and the notebook runs on any machine that has the data.
+python-dotenv
+
 # MATLAB file I/O. `scipy.io.loadmat` reads the .mat segment files shipped with the
 # clean-call dataset, which hold the call boundaries the paper's Table 1 is built from.
 scipy
