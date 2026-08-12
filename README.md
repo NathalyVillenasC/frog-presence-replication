@@ -21,6 +21,7 @@ frog-presence-replication/
 ├── src/           # Reproducible source code
 ├── tests/         # Unit and integration tests
 ├── .env.example   # Template for the local dataset locations
+├── CLAUDE.md      # Working rules for the repository
 ├── README.md
 └── requirements.txt
 ```
