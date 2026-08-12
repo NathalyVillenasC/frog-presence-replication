@@ -1,5 +1,22 @@
+# Core numerics and tables
 numpy
 pandas
+
+# Plotting. seaborn draws the statistical figures (categorical box + strip plots) and
+# supplies the global theme, which removes the per-figure grid and spine styling.
 matplotlib
+seaborn
+
+# Notebook environment
 jupyter
 ipykernel
+
+# MATLAB file I/O. `scipy.io.loadmat` reads the .mat segment files shipped with the
+# clean-call dataset, which hold the call boundaries the paper's Table 1 is built from.
+scipy
+
+# Audio I/O. Python binding to libsndfile; used to read audio file headers
+# (sample rate, channels, duration, encoding) without decoding the samples.
+# Required because part of the corpus is GSM 6.10 inside WAV and MP3, which
+# neither the stdlib `wave` module nor `scipy.io.wavfile` can open.
+soundfile
