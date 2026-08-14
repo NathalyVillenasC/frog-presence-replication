@@ -11,6 +11,10 @@ seaborn
 jupyter
 ipykernel
 
+# Testing. Runs the suite in tests/, which covers the reusable pieces extracted into
+# src/frog_presence: header reading, filename classification and sidecar parsing.
+pytest
+
 # Configuration. Reads the dataset locations from a local .env file, so the paths
 # stay out of the code and the notebook runs on any machine that has the data.
 python-dotenv
