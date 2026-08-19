@@ -23,6 +23,11 @@ python-dotenv
 # clean-call dataset, which hold the call boundaries the paper's Table 1 is built from.
 scipy
 
+# Mel filter banks. `librosa.filters.mel` builds the triangular bank the article's
+# Figure 6(b) is estimated from, with the lower edge, the number of filters, the mel
+# formula and the normalisation all given as named arguments.
+librosa
+
 # Audio I/O. Python binding to libsndfile; used to read audio file headers
 # (sample rate, channels, duration, encoding) without decoding the samples.
 # Required because part of the corpus is GSM 6.10 inside WAV and MP3, which
