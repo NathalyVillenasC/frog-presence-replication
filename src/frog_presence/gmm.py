@@ -167,6 +167,70 @@ def build_split(calls: pd.DataFrame, codes, target_seconds: float, repeat: int,
     return train_ids, validation_ids, pd.DataFrame(rows)
 
 
+def build_recording_split(calls: pd.DataFrame, codes, target_seconds: float, repeat: int,
+                          base_seed: int) -> tuple[dict, dict, pd.DataFrame]:
+    """Draw a split that keeps whole recordings on one side of it.
+
+    Not part of the article's protocol, which selects calls at random. For each species its
+    source recordings are shuffled, half of them (at least one) become the training
+    recordings, and calls are drawn from those until ``target_seconds`` is reached, or all
+    of them are used if they hold less. Validation is every call of the other recordings,
+    so no recording contributes to both sides.
+
+    Args:
+        calls (pd.DataFrame): Table with ``call_id``, ``code``, ``species``, ``wav`` and
+            ``seconds`` columns.
+        codes (Iterable[str]): Species to split. Each needs at least two recordings.
+        target_seconds (float): Training duration per species.
+        repeat (int): Index of the repeated random selection.
+        base_seed (int): Seed the whole experiment derives from.
+
+    Returns:
+        tuple: As ``build_split``.
+
+    Raises:
+        ValueError: If a species has a single recording, so nothing could be held out.
+    """
+    train_ids, validation_ids, rows = {}, {}, []
+
+    for code in codes:
+        seed = base_seed + repeat * 10_000 + int(target_seconds) * 100 + species_number(code)
+        rng = np.random.default_rng(seed)
+        species_calls = calls.loc[calls["code"] == code]
+        wavs = sorted(species_calls["wav"].unique())
+        if len(wavs) < 2:
+            raise ValueError(f"{code} has a single recording, so none can be held out.")
+
+        rng.shuffle(wavs)
+        training_wavs = set(wavs[:max(1, len(wavs) // 2)])
+        pool = species_calls[species_calls["wav"].isin(training_wavs)]
+        order = rng.permutation(len(pool))
+
+        selected, total = [], 0.0
+        for position in order:
+            selected.append(pool.iloc[position]["call_id"])
+            total += float(pool.iloc[position]["seconds"])
+            if total >= target_seconds:
+                break
+
+        train_ids[code] = tuple(selected)
+        validation_ids[code] = tuple(species_calls.loc[~species_calls["wav"].isin(training_wavs),
+                                                       "call_id"])
+        rows.append({
+            "code": code,
+            "species": species_calls["species"].iloc[0],
+            "training_seconds_target": target_seconds,
+            "training_seconds_actual": total,
+            "overshoot_seconds": max(0.0, total - target_seconds),
+            "n_train_calls": len(selected),
+            "n_validation_calls": len(validation_ids[code]),
+            "repeat": repeat,
+            "seed": seed,
+        })
+
+    return train_ids, validation_ids, pd.DataFrame(rows)
+
+
 def initial_parameters(X: np.ndarray, n_components: int, seed: int):
     """Starting point of EM, as section 3.5 of the article specifies it.
 

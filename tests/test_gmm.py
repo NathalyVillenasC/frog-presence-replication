@@ -12,6 +12,7 @@ import pytest
 
 from frog_presence.gmm import (
     CallCorpus,
+    build_recording_split,
     build_split,
     evaluate_models,
     fit_gmm,
@@ -129,3 +130,43 @@ def test_well_separated_species_are_identified_and_wer_is_the_macro_average(corp
     assert wer == 0.0
     assert len(predictions) == sum(len(v) for v in validation_ids.values())
     assert per_species.n_validation_calls.tolist() == [len(validation_ids[c]) for c in codes]
+
+
+@pytest.fixture
+def recorded_corpus():
+    """Two species, four recordings each, three 0.5 s calls per recording."""
+    rng = np.random.default_rng(0)
+    rows, blocks = [], []
+    for code, centre in (("f01", -5.0), ("f02", 5.0)):
+        for wav in range(4):
+            for _ in range(3):
+                rows.append({"code": code, "species": f"species {code}", "wav": f"{code}_{wav}.wav",
+                             "seconds": 0.5, "frames": 10})
+                blocks.append(rng.normal(centre, 1.0, size=(10, 3)))
+    return CallCorpus(np.vstack(blocks), pd.DataFrame(rows))
+
+
+def test_recording_split_never_shares_a_recording(recorded_corpus):
+    calls = recorded_corpus.calls.set_index("call_id")
+    train, validation, summary = build_recording_split(recorded_corpus.calls, ["f01", "f02"], 1.0, 0, 9)
+    for code in ("f01", "f02"):
+        assert not set(calls.loc[list(train[code]), "wav"]) & set(calls.loc[list(validation[code]), "wav"])
+        assert len(train[code]) and len(validation[code])
+    assert summary.n_validation_calls.tolist() == [len(validation["f01"]), len(validation["f02"])]
+
+
+def test_recording_split_trains_on_half_of_the_recordings(recorded_corpus):
+    calls = recorded_corpus.calls.set_index("call_id")
+    train, validation, _ = build_recording_split(recorded_corpus.calls, ["f01"], 99.0, 0, 9)
+    # A target nobody can reach uses every call of the training recordings: 2 of 4 recordings.
+    assert len(train["f01"]) == 6 and len(validation["f01"]) == 6
+    assert calls.loc[list(train["f01"]), "wav"].nunique() == 2
+
+
+def test_recording_split_is_reproducible_and_needs_two_recordings(recorded_corpus):
+    a = build_recording_split(recorded_corpus.calls, ["f01"], 1.0, 3, 9)
+    b = build_recording_split(recorded_corpus.calls, ["f01"], 1.0, 3, 9)
+    assert a[0] == b[0] and a[1] == b[1]
+    single = recorded_corpus.calls[recorded_corpus.calls.wav == "f01_0.wav"]
+    with pytest.raises(ValueError):
+        build_recording_split(single, ["f01"], 1.0, 0, 9)
