@@ -38,3 +38,21 @@ def classify_env_file(name: str) -> str:
         if pattern.match(name):
             return role
     return "unclassified"
+
+
+# Excerpts are cut out of a ten-minute sample and named after it: "cc126A_SP1B" comes from "cc126A_SP1".
+SAMPLE_GROUP = re.compile(r"^(cc\d{3}[AB])[-_ ]*(?:poza\s?[12][-_])?_?(sp\d)", re.I)
+
+
+def sample_group(name: str) -> str | None:
+    """The ten-minute sample a pond file belongs to: its cassette side plus its SP number.
+
+    Args:
+        name (str): Bare filename.
+
+    Returns:
+        str | None: A key such as "cc126b_sp1", shared by a sample and the excerpts cut from it, or
+            None when the name has no SP number (full cassette sides, other recorders).
+    """
+    match = SAMPLE_GROUP.match(name)
+    return f"{match.group(1)}_{match.group(2)}".lower() if match else None

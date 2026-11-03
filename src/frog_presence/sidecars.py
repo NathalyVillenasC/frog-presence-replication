@@ -7,6 +7,7 @@ they are written down.
 """
 
 import re
+from datetime import date
 from pathlib import Path
 
 
@@ -64,3 +65,23 @@ def read_xmp_species(path: Path) -> list:
     return sorted({match.group(1).strip().lower()
                    for match in re.finditer(r"<rdf:li>Especie[^=]*=([^<]*)</rdf:li>", text)
                    if match.group(1).strip()})
+
+
+def read_xmp_date(path: Path) -> date | None:
+    """Read the recording date from a sidecar's ``Fecha`` field, written day/month/year.
+
+    Args:
+        path (Path): An .xmp sidecar file.
+
+    Returns:
+        date | None: The date, or None when the field is absent or is not a valid date.
+    """
+    text = path.read_text(encoding="utf-8", errors="replace")
+    match = re.search(r"Fecha[^=<]*=\s*(\d{1,2})/(\d{1,2})/(\d{4})", text)
+    if not match:
+        return None
+    day, month, year = (int(g) for g in match.groups())
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None

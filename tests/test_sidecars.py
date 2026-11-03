@@ -160,3 +160,19 @@ def test_a_sidecar_with_no_especie_field_names_nothing(tmp_path):
     path = write_sidecar(tmp_path, user_fields("Colector=SRR", "Fecha=2001-11-14"))
 
     assert read_xmp_species(path) == []
+
+
+def test_the_date_is_read_day_first(tmp_path):
+    from datetime import date
+
+    from frog_presence.sidecars import read_xmp_date
+
+    path = write_sidecar(tmp_path, "<rdf:li>Fecha????????=19/09/2002</rdf:li>")
+    assert read_xmp_date(path) == date(2002, 9, 19)
+
+
+def test_a_missing_or_impossible_date_is_none(tmp_path):
+    from frog_presence.sidecars import read_xmp_date
+
+    assert read_xmp_date(write_sidecar(tmp_path, "<rdf:li>Especie=petersi</rdf:li>")) is None
+    assert read_xmp_date(write_sidecar(tmp_path, "<rdf:li>Fecha=31/02/2002</rdf:li>")) is None

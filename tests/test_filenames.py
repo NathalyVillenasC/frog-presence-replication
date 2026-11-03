@@ -7,7 +7,7 @@ future changes that would alter how the replication classifies its test material
 
 import pytest
 
-from frog_presence.filenames import classify_env_file
+from frog_presence.filenames import classify_env_file, sample_group
 
 
 @pytest.mark.parametrize(
@@ -61,3 +61,18 @@ def test_anything_else_is_left_unclassified(name):
     a role would be counted as material it is not.
     """
     assert classify_env_file(name) == "unclassified"
+
+
+@pytest.mark.parametrize(
+    "name, group",
+    [
+        ("cc126A_SP1.wav", "cc126a_sp1"),
+        ("cc126A_SP1B.wav", "cc126a_sp1"),
+        ("cc144B_poza2_SP2.wav", "cc144b_sp2"),
+        ("cc133A_SP1A_2.wav", "cc133a_sp1"),
+        ("cc126A.wav", None),
+        ("LS100001.wav", None),
+    ],
+)
+def test_a_sample_and_its_excerpts_share_one_group(name, group):
+    assert sample_group(name) == group
