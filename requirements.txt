@@ -33,3 +33,11 @@ librosa
 # Required because part of the corpus is GSM 6.10 inside WAV and MP3, which
 # neither the stdlib `wave` module nor `scipy.io.wavfile` can open.
 soundfile
+
+# Gaussian mixture models. `sklearn.mixture.GaussianMixture` is the article's classifier (section 3.5):
+# EM maximum-likelihood training, k-means++ initialisation, diagonal covariances.
+scikit-learn
+
+# Model persistence. Trained mixtures and their thresholds are written to `models/` and
+# reloaded by later notebooks, so a stage does not retrain what an earlier one produced.
+joblib
