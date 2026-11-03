@@ -231,6 +231,113 @@ def build_recording_split(calls: pd.DataFrame, codes, target_seconds: float, rep
     return train_ids, validation_ids, pd.DataFrame(rows)
 
 
+def build_global_recording_split(calls: pd.DataFrame, codes, target_seconds: float, repeat: int,
+                                 base_seed: int, n_attempts: int = 1500,
+                                 group_column: str = "wav") -> tuple[dict, dict, pd.DataFrame]:
+    """Draw one split of the whole corpus in which a recording is on one side everywhere.
+
+    Not part of the article's protocol. Recordings are assigned as units, and the assignment
+    is global, not per species, because one recording can carry calls of more than one species:
+    a recording used for training is training material for every species it contains.
+
+    Many random assignments are tried. Each one adds recordings in a random order, skipping those
+    that help no species still short of the target, until every species has ``target_seconds`` of
+    training. An assignment is valid when every species also keeps at least one validation call.
+    Because whole recordings are added, the target is a minimum, and the valid assignment with the
+    smallest total overshoot (relative to the target, summed over species) is kept; ties go to the
+    first one found.
+
+    Args:
+        calls (pd.DataFrame): Table with ``call_id``, ``code``, ``species``, ``seconds`` and
+            ``group_column``.
+        codes (Iterable[str]): Species to split.
+        target_seconds (float): Minimum training duration per species.
+        repeat (int): Index of the repeated random selection.
+        base_seed (int): Seed the whole experiment derives from.
+        n_attempts (int): Random assignments to try.
+        group_column (str): Column naming each call's recording.
+
+    Returns:
+        tuple: As ``build_split``, with the summary also holding the number of training and
+            validation recordings per species and globally, and the attempt that was kept.
+
+    Raises:
+        RuntimeError: If no attempt gives a valid assignment.
+    """
+    codes = list(codes)
+    usable = calls[calls["code"].isin(codes)].copy()
+    usable["_group"] = usable[group_column].astype(str).str.strip().str.lower()
+    recordings = np.array(sorted(usable["_group"].unique()), dtype=object)
+    index_of = {name: i for i, name in enumerate(recordings)}
+
+    seconds = (usable.groupby(["_group", "code"])["seconds"].sum().unstack(fill_value=0.0)
+               .reindex(index=recordings, columns=codes, fill_value=0.0).to_numpy())
+    n_calls = (usable.groupby(["_group", "code"]).size().unstack(fill_value=0)
+               .reindex(index=recordings, columns=codes, fill_value=0).to_numpy())
+
+    seed = base_seed + 70_000_000 + repeat * 100_000 + int(target_seconds) * 100
+    best, best_score = None, None
+
+    for attempt in range(n_attempts):
+        order = np.random.default_rng(seed + attempt).permutation(recordings)
+        accumulated = np.zeros(len(codes))
+        training = []
+
+        for name in order:
+            i = index_of[name]
+            if not np.any((accumulated < target_seconds) & (seconds[i] > 0)):
+                continue
+            training.append(i)
+            accumulated = accumulated + seconds[i]
+            if np.all(accumulated >= target_seconds):
+                break
+
+        if not training or len(training) == len(recordings):
+            continue
+        in_training = np.zeros(len(recordings), dtype=bool)
+        in_training[training] = True
+        if (np.any(accumulated < target_seconds) or np.any(n_calls[in_training].sum(axis=0) == 0)
+                or np.any(n_calls[~in_training].sum(axis=0) == 0)):
+            continue
+
+        overshoot = 0.0
+        for k in range(len(codes)):
+            overshoot += (accumulated[k] - target_seconds) / target_seconds
+        score = (overshoot, len(training))
+        if best is None or score < best_score:
+            best, best_score = (attempt, in_training.copy(), accumulated.copy()), score
+
+    if best is None:
+        raise RuntimeError(f"No valid recording-level split for target={target_seconds}s, repeat={repeat}.")
+
+    attempt, in_training, accumulated = best
+    training_names = set(recordings[in_training])
+    train_ids, validation_ids, rows = {}, {}, []
+    for k, code in enumerate(codes):
+        species_calls = usable[usable["code"] == code]
+        is_training = species_calls["_group"].isin(training_names)
+        train_ids[code] = tuple(species_calls.loc[is_training, "call_id"])
+        validation_ids[code] = tuple(species_calls.loc[~is_training, "call_id"])
+        rows.append({
+            "code": code,
+            "species": species_calls["species"].iloc[0],
+            "training_seconds_target": target_seconds,
+            "training_seconds_actual": float(accumulated[k]),
+            "overshoot_seconds": float(accumulated[k] - target_seconds),
+            "n_train_calls": len(train_ids[code]),
+            "n_validation_calls": len(validation_ids[code]),
+            "n_train_recordings": int(species_calls.loc[is_training, "_group"].nunique()),
+            "n_validation_recordings": int(species_calls.loc[~is_training, "_group"].nunique()),
+            "global_train_recordings": int(in_training.sum()),
+            "global_validation_recordings": int((~in_training).sum()),
+            "split_attempt": attempt,
+            "repeat": repeat,
+            "seed": seed + attempt,
+        })
+
+    return train_ids, validation_ids, pd.DataFrame(rows)
+
+
 def initial_parameters(X: np.ndarray, n_components: int, seed: int):
     """Starting point of EM, as section 3.5 of the article specifies it.
 

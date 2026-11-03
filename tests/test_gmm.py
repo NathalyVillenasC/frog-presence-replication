@@ -12,6 +12,7 @@ import pytest
 
 from frog_presence.gmm import (
     CallCorpus,
+    build_global_recording_split,
     build_recording_split,
     build_split,
     evaluate_models,
@@ -170,3 +171,45 @@ def test_recording_split_is_reproducible_and_needs_two_recordings(recorded_corpu
     single = recorded_corpus.calls[recorded_corpus.calls.wav == "f01_0.wav"]
     with pytest.raises(ValueError):
         build_recording_split(single, ["f01"], 1.0, 0, 9)
+
+
+@pytest.fixture
+def shared_recording_corpus():
+    """Two species over six recordings; recording ``r2`` carries calls of both species."""
+    rng = np.random.default_rng(1)
+    layout = {"f01": ["r0", "r1", "r2", "r3"], "f02": ["r2", "r4", "r5"]}
+    rows, blocks = [], []
+    for code, recordings in layout.items():
+        for wav in recordings:
+            for _ in range(4):
+                rows.append({"code": code, "species": f"species {code}", "wav": f"{wav}.wav",
+                             "seconds": 0.5, "frames": 10})
+                blocks.append(rng.normal(0.0, 1.0, size=(10, 3)))
+    return CallCorpus(np.vstack(blocks), pd.DataFrame(rows))
+
+
+def test_global_split_puts_every_recording_on_one_side_for_all_species(shared_recording_corpus):
+    calls = shared_recording_corpus.calls.set_index("call_id")
+    train, validation, summary = build_global_recording_split(
+        shared_recording_corpus.calls, ["f01", "f02"], 2.0, 0, 3, n_attempts=50)
+    train_wavs = {w for ids in train.values() for w in calls.loc[list(ids), "wav"]}
+    validation_wavs = {w for ids in validation.values() for w in calls.loc[list(ids), "wav"]}
+    assert not train_wavs & validation_wavs
+    assert (summary.training_seconds_actual >= 2.0).all()
+    assert (summary.n_validation_calls > 0).all()
+
+
+def test_global_split_is_reproducible_and_keeps_the_smallest_overshoot(shared_recording_corpus):
+    args = (shared_recording_corpus.calls, ["f01", "f02"], 2.0, 1, 3)
+    a = build_global_recording_split(*args, n_attempts=200)
+    b = build_global_recording_split(*args, n_attempts=200)
+    assert a[0] == b[0] and a[2].equals(b[2])
+    one = build_global_recording_split(*args, n_attempts=1)[2].overshoot_seconds.sum()
+    many = build_global_recording_split(*args, n_attempts=200)[2].overshoot_seconds.sum()
+    assert many <= one + 1e-9
+
+
+def test_global_split_fails_when_no_species_can_keep_validation_material(shared_recording_corpus):
+    # 99 s is more than any species holds, so no assignment can reach the target.
+    with pytest.raises(RuntimeError):
+        build_global_recording_split(shared_recording_corpus.calls, ["f01", "f02"], 99.0, 0, 3, n_attempts=20)
