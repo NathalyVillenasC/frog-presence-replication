@@ -17,7 +17,7 @@ frog-presence-replication/
 
 ├── data/          # External datasets (not included in the repository)
 ├── models/        # Trained models and checkpoints (not included)
-├── notebooks/     # One notebook per stage of the article, in order (superseded work: notebooks/archive/)
+├── notebooks/     # One notebook per stage of the article, in order (superseded work: branch archive/previous-notebooks)
 ├── src/           # Reproducible source code shared by the notebooks (src/frog_presence)
 ├── tests/         # Unit tests, and checks that the documentation matches the notebooks
 ├── .env.example   # Template for the local dataset locations

@@ -3,7 +3,7 @@
 > **Artículo base:** *Presence-absence estimation in audio recordings of tropical frog communities*  
 > **Objetivo del proyecto:** replicar la **metodología** del artículo tan fielmente como permiten los datos recuperados, documentando de forma explícita las diferencias, las decisiones de reconstrucción y lo que los datos no permiten afirmar.
 >
-> **Estado:** los nueve notebooks fueron auditados y reconstruidos en orden, uno por etapa del artículo. El trabajo anterior (prototipos, diagnósticos y notebooks de "promoción") está en `notebooks/archive/`. Cada notebook sigue la misma forma: pregunta de la sección, código, salida, hallazgos etiquetados (`[PAPER]`, `[SOURCE]`, `[OBSERVED]`, `[INFERENCE]`). Los números de cada hallazgo están impresos en la salida que los precede.
+> **Estado:** los nueve notebooks fueron auditados y reconstruidos en orden, uno por etapa del artículo. El trabajo anterior (prototipos, diagnósticos y notebooks de "promoción") está en la rama `archive/previous-notebooks`. Cada notebook sigue la misma forma: pregunta de la sección, código, salida, hallazgos etiquetados (`[PAPER]`, `[SOURCE]`, `[OBSERVED]`, `[INFERENCE]`). Los números de cada hallazgo están impresos en la salida que los precede.
 
 ## Leyenda
 
