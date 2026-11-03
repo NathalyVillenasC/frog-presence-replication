@@ -3,6 +3,9 @@
 > **Artículo base:** *Presence-absence estimation in audio recordings of tropical frog communities*  
 > **Objetivo del proyecto:** replicar la **metodología** del artículo tan fielmente como permiten los datos recuperados, documentando de forma explícita las diferencias, decisiones de reconstrucción y mejoras de robustez.
 
+>
+> **Estado de la revisión (se actualiza por etapas).** Los notebooks 01 a 04 ya fueron auditados con la numeración nueva: `04_feature_comparison` es el antiguo `05_feature_comparision`, y el antiguo `04_likelihood_ratio_calibration` está en `notebooks/archive/`. Las filas y diagramas de abajo para el resto de los notebooks siguen la numeración antigua y aún no han sido auditados. En particular, la afirmación de que PLP-RASTA fue "más robusto" debe leerse con la advertencia de `04_feature_comparison`: su ventaja bajo el protocolo del artículo depende en gran parte de cómo arranca el filtro RASTA en cada llamada.
+
 ## Leyenda
 
 - 🟩 **Reproducción directa:** implementa una etapa descrita explícitamente en el artículo.
