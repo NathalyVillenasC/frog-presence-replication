@@ -17,9 +17,9 @@ frog-presence-replication/
 
 ├── data/          # External datasets (not included in the repository)
 ├── models/        # Trained models and checkpoints (not included)
-├── notebooks/     # Exploratory analysis and experiments
-├── src/           # Reproducible source code
-├── tests/         # Unit and integration tests
+├── notebooks/     # One notebook per stage of the article, in order (superseded work: notebooks/archive/)
+├── src/           # Reproducible source code shared by the notebooks (src/frog_presence)
+├── tests/         # Unit tests, and checks that the documentation matches the notebooks
 ├── .env.example   # Template for the local dataset locations
 ├── pyproject.toml # Package metadata, so src/ is importable
 ├── CLAUDE.md      # Working rules for the repository
@@ -40,6 +40,11 @@ source .venv/bin/activate       # macOS / Linux
 pip install -r requirements.txt
 pip install -e .                # makes src/frog_presence importable
 ```
+
+Optionally, scoring can run on an NVIDIA GPU. Install the CuPy build that matches your CUDA version
+(for example `pip install cupy-cuda12x`). Nothing requires it: `frog_presence.device.array_module()`
+tries the GPU and falls back to NumPy on the CPU, with the same results, and no notebook installs anything.
+Only the scoring of candidate segments uses it; the signal processing runs on the CPU.
 
 Then tell the project where the audio lives:
 
@@ -77,6 +82,13 @@ redistributed here. Anyone wishing to reproduce the full analysis has to request
 | [`05_model_selection.ipynb`](notebooks/05_model_selection.ipynb) | Chooses the feature set and the number of Gaussians with whole recordings kept apart between training and validation, the situation of the pond recordings. Compares the article's call-level protocol with the recording-level one, ranks six feature sets (including both RASTA starts), optimises duration and model order, and writes the configuration that the detector reads. The split search lives in `src/frog_presence/gmm.py`. |
 | [`06_detector_calibration.ipynb`](notebooks/06_detector_calibration.ipynb) | Builds the detector of Sections 3.5 to 3.8 from the selected model: a fixed recording-level TRAIN / CALIBRATION split, one frozen mixture per species, likelihood-ratio verification against the median of the alternatives, and one threshold per species. Compares the article's one-vs-all threshold rule with the rule that matches the deployed decision, measures how much margin the thresholds have and how much they change with the split, and writes the frozen detector to `models/`. The code lives in `src/frog_presence/detector.py`. |
 | [`07_candidate_segmentation.ipynb`](notebooks/07_candidate_segmentation.ipynb) | Builds and tests the front end of Sections 3.2 and 3.3 on the labelled recordings: 30 s blocks, species band-pass filter, 10 ms energy, moving average of 12, and the 3/3 endpoint rule. Measures the coverage of the annotated calls over a grid of the unreported constant `C`, selects one `C` per species, checks the endpoint padding through the frozen detector, and writes the frozen configuration. The code lives in `src/frog_presence/segmentation.py`. |
+| [`08_field_inference.ipynb`](notebooks/08_field_inference.ipynb) | Applies the frozen segmentation and detector to the article's 141 ten-minute pond samples (22.38 hours), selected by filename, with pond, date and the species named in the sidecars recovered for each sample. Writes every candidate with its decision and the presence vectors; `f09` is `NA`. Scoring runs on the GPU when one is usable. The code lives in `src/frog_presence/field.py` and `inference.py`. |
+| [`09_field_results_analysis.ipynb`](notebooks/09_field_results_analysis.ipynb) | Examines what the field output supports: presence by species, pond and date, what the detector accepts, how much each result depends on the thresholds and on the shortest candidate counted (varied, not tuned), and whether the output separates the samples whose sidecars name a species. No accuracy is computed, because the article's 18 labelled vectors were not delivered. |
+
+Run the notebooks in order, `01` to `09`: each one reads what the previous ones wrote under `data/processed/` and `models/`, and says in its
+last sections what it hands over. A change to a stage makes the notebooks after it stale, so they are re-run from that point.
+`pytest` runs the unit tests of `src/` and `tests/test_docs_consistency.py`, which checks that the notebooks and this README agree
+(every notebook described, every dependency declared, no personal path in an output, every cell executed in order).
 
 ## Reproducibility
 
