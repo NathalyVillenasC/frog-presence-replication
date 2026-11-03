@@ -47,8 +47,35 @@ def diag_gmm_log_likelihood(model, X, xp=np):
     return xp.concatenate(out) if out else xp.empty(0)
 
 
+def mean_log_likelihoods_stacked(models: dict, frames: np.ndarray, lengths: np.ndarray, xp=np) -> np.ndarray:
+    """Mean frame log-likelihood of every candidate under every model, from already stacked frames.
+
+    Args:
+        models (dict): Fitted mixture per species code, in the order of the detector.
+        frames (np.ndarray): The frames of all candidates one after another, shape (frames, d).
+        lengths (np.ndarray): Number of frames of each candidate; a candidate with none gets NaN.
+        xp (module): ``numpy`` or ``cupy``.
+
+    Returns:
+        np.ndarray: Shape (candidates, models), always a NumPy array.
+    """
+    from .device import to_numpy
+
+    lengths = np.asarray(lengths)
+    scores = np.full((len(lengths), len(models)), np.nan)
+    valid = lengths > 0
+    if not valid.any():
+        return scores
+    offsets = np.concatenate(([0], np.cumsum(lengths[valid])[:-1]))
+    on_device = xp.asarray(frames)
+    for k, model in enumerate(models.values()):
+        per_frame = to_numpy(diag_gmm_log_likelihood(model, on_device, xp))
+        scores[valid, k] = np.add.reduceat(per_frame, offsets) / lengths[valid]
+    return scores
+
+
 def mean_log_likelihoods(models: dict, blocks: list[np.ndarray], xp=np) -> np.ndarray:
-    """Mean frame log-likelihood of every block under every model (equation 9 of the article).
+    """Mean frame log-likelihood of each block under each model (equation 9 of the article).
 
     Args:
         models (dict): Fitted mixture per species code, in the order of the detector.
@@ -59,35 +86,29 @@ def mean_log_likelihoods(models: dict, blocks: list[np.ndarray], xp=np) -> np.nd
     Returns:
         np.ndarray: Shape (blocks, models), always a NumPy array.
     """
-    from .device import to_numpy
-
     lengths = np.array([len(b) for b in blocks])
-    scores = np.full((len(blocks), len(models)), np.nan)
-    valid = lengths > 0
-    if not valid.any():
-        return scores
-    frames = xp.asarray(np.vstack([b for b, ok in zip(blocks, valid) if ok]))
-    offsets = np.concatenate(([0], np.cumsum(lengths[valid])[:-1]))
-    for k, model in enumerate(models.values()):
-        per_frame = to_numpy(diag_gmm_log_likelihood(model, frames, xp))
-        scores[valid, k] = np.add.reduceat(per_frame, offsets) / lengths[valid]
-    return scores
+    frames = np.vstack([b for b in blocks if len(b)]) if (lengths > 0).any() else np.empty((0, 0))
+    return mean_log_likelihoods_stacked(models, frames, lengths, xp)
 
 
-def detect(models: dict, thresholds: dict, blocks: list[np.ndarray], xp=np) -> dict:
-    """Identify and verify every candidate with the frozen detector.
+def decide_scores(models: dict, thresholds: dict, scores: np.ndarray) -> dict:
+    """Identify and verify candidates whose scores are already computed.
 
     Returns:
-        dict: ``scores`` (blocks, models), ``valid`` (candidate had frames), ``hypothesis`` (index of the
-            winning model, -1 when invalid), ``llr`` and ``accepted``.
+        dict: ``scores`` (candidates, models), ``valid`` (candidate had frames), ``hypothesis`` (index of
+            the winning model, -1 when invalid), ``llr`` and ``accepted``.
     """
-    scores = mean_log_likelihoods(models, blocks, xp)
     valid = ~np.isnan(scores).any(axis=1)
-    out = {"scores": scores, "valid": valid, "hypothesis": np.full(len(blocks), -1),
-           "llr": np.full(len(blocks), np.nan), "accepted": np.zeros(len(blocks), bool)}
+    out = {"scores": scores, "valid": valid, "hypothesis": np.full(len(scores), -1),
+           "llr": np.full(len(scores), np.nan), "accepted": np.zeros(len(scores), bool)}
     if valid.any():
         decision = D.decide(scores[valid], np.array([thresholds[c] for c in models]))
         out["hypothesis"][valid] = decision["hypothesis"]
         out["llr"][valid] = decision["llr"]
         out["accepted"][valid] = decision["accepted"]
     return out
+
+
+def detect(models: dict, thresholds: dict, blocks: list[np.ndarray], xp=np) -> dict:
+    """Identify and verify every candidate with the frozen detector (see ``decide_scores``)."""
+    return decide_scores(models, thresholds, mean_log_likelihoods(models, blocks, xp))
